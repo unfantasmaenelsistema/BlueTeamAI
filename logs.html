@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Analizador de logs · BlueTeamAI</title>
+<meta name="description" content="Analiza logs de seguridad (SSH, Windows, firewall, web, Active Directory) con la IA gratuita de Google Gemini: alertas, línea de tiempo, IPs anómalas y mitigaciones.">
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/core.css">
+<link rel="stylesheet" href="assets/logs.css">
+<script>(function(){var t=null;try{t=localStorage.getItem('bt_theme')}catch(e){}if(!t)t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
+</head>
+<body data-tool="logs" data-title-key="logs.title">
+<header class="bt-top" id="btTop"></header>
+
+<main class="wrap">
+  <div class="tool">
+    <aside class="panel">
+      <div class="panel-title" data-t="logs.type">Tipo de log</div>
+      <div class="seg" id="typeSeg" role="group">
+        <button type="button" data-type="auto" class="on" data-t="logs.type.auto">Autodetectar</button>
+        <button type="button" data-type="ssh">SSH / auth</button>
+        <button type="button" data-type="windows" data-t="logs.type.windows">Eventos Windows</button>
+        <button type="button" data-type="firewall">Firewall</button>
+        <button type="button" data-type="web" data-t="logs.type.web">Servidor web</button>
+        <button type="button" data-type="ad">Active Directory</button>
+      </div>
+
+      <div class="panel-title" style="margin-top:16px" data-t="logs.load">Cargar logs</div>
+      <label class="drop" id="dropZone">
+        <input type="file" id="fileInput" accept=".log,.txt,.csv,.json,.jsonl,text/plain">
+        <span class="drop-ico" aria-hidden="true">📂</span>
+        <b data-t="logs.drop">Arrastra un archivo o haz clic</b>
+        <small data-t="logs.dropHint">.log .txt .csv .json — texto plano, hasta 2 MB</small>
+      </label>
+      <label class="label" for="logText" style="margin-top:12px" data-t="logs.paste">O pega los logs aquí</label>
+      <textarea class="textarea" id="logText" spellcheck="false" style="min-height:170px" data-t-ph="logs.pastePh"></textarea>
+      <div class="muted mono counter" id="counter"></div>
+
+      <div class="panel-title" style="margin-top:14px" data-t="logs.samples">Ejemplos</div>
+      <div class="seg" id="samples">
+        <button type="button" data-sample="ssh">🐧 SSH brute force</button>
+        <button type="button" data-sample="web">🌐 Web attacks</button>
+        <button type="button" data-sample="firewall">🔥 Firewall scan</button>
+        <button type="button" data-sample="windows">🪟 Windows auth</button>
+        <button type="button" data-sample="mixed">⚡ Mixed attack</button>
+        <button type="button" data-sample="ad">🏢 AD attack</button>
+      </div>
+
+      <label class="switch" style="margin-top:12px">
+        <input type="checkbox" id="geoOpt" checked>
+        <span><b data-t="logs.geo">Geolocalizar IPs públicas</b><small data-t="logs.geoHint">Consulta ipwho.is (o ipapi.is si falla) solo con las IP públicas detectadas.</small></span>
+      </label>
+
+      <button class="btn block" id="analyzeBtn" type="button" style="margin-top:12px">⚡ <span data-t="logs.analyze">Analizar logs</span></button>
+      <p class="notice" style="margin-top:12px;font-size:.9rem" data-t="logs.privacy"></p>
+      <p class="notice info upsell" style="margin-top:10px;font-size:.9rem">
+        <span data-t="logs.upsell">¿Logs que no pueden salir de tu equipo? GhostLog para Windows los analiza sin conexión y sin IA externa.</span>
+        <a href="https://ghostore.unfantasmaenelsistema.com/apps/ghostlog/" target="_blank" rel="noopener">GhostLog ↗</a>
+      </p>
+    </aside>
+
+    <section class="results" id="results" aria-live="polite">
+      <!-- Bienvenida -->
+      <div class="panel" id="stWelcome">
+        <h1 class="h1">// <span data-t="logs.h1">Analizador de logs de seguridad</span></h1>
+        <p class="lead" style="margin:6px 0 14px" data-t="logs.lead">Detecta fuerza bruta, accesos sospechosos, ataques web, escaneos, movimiento lateral y exfiltración en tus logs, con mitigaciones concretas para cada hallazgo.</p>
+        <div class="cards">
+          <div class="card"><span class="ico">🔴</span><h3 data-t="logs.cap1">Fuerza bruta</h3><p data-t="logs.cap1d">Intentos repetidos de autenticación fallida y accesos que llegan después.</p></div>
+          <div class="card"><span class="ico">🕵️</span><h3 data-t="logs.cap2">Accesos sospechosos</h3><p data-t="logs.cap2d">Inicios de sesión anómalos por hora, origen, cuenta o privilegios.</p></div>
+          <div class="card"><span class="ico">🌐</span><h3 data-t="logs.cap3">IPs anómalas</h3><p data-t="logs.cap3d">Puntuación de amenaza por IP, eventos reales contados en tu log y geolocalización.</p></div>
+          <div class="card"><span class="ico">⚔️</span><h3 data-t="logs.cap4">Patrones de ataque</h3><p data-t="logs.cap4d">SQLi, XSS, path traversal, escaneo de puertos, C2, Kerberoasting, DCSync…</p></div>
+          <div class="card"><span class="ico">📅</span><h3 data-t="logs.cap5">Línea de tiempo</h3><p data-t="logs.cap5d">Cronología de los eventos clave y actividad real por hora.</p></div>
+          <div class="card"><span class="ico">🛡️</span><h3 data-t="logs.cap6">Mitigaciones</h3><p data-t="logs.cap6d">Pasos concretos y técnicas MITRE ATT&amp;CK para cada alerta.</p></div>
+        </div>
+        <p class="notice info" style="margin-top:14px" id="noKeyHint" hidden></p>
+      </div>
+
+      <!-- Analizando -->
+      <div class="panel" id="stScan" hidden>
+        <div class="empty">
+          <div class="spinner"></div>
+          <b class="mono" data-t="logs.scanning">ANALIZANDO LOGS…</b>
+          <p class="muted" id="scanStatus"></p>
+          <ul class="steps" id="scanSteps"></ul>
+          <button class="btn ghost small" type="button" id="cancelBtn" style="margin-top:14px" data-t="logs.cancel">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- Error -->
+      <div class="panel" id="stError" hidden>
+        <p class="notice err" id="errorMsg"></p>
+      </div>
+
+      <!-- Resultado -->
+      <div id="stDash" hidden>
+        <div class="panel risk" id="riskBox"></div>
+        <div class="kpis" id="kpis"></div>
+        <div class="dash-grid">
+          <div class="panel">
+            <div class="panel-title"><span data-t="logs.hourly">Eventos por hora (contados en tu log)</span></div>
+            <div class="bars" id="bars"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-title" data-t="logs.bySev">Alertas por severidad</div>
+            <div class="donut" id="donut"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="actions">
+            <button class="btn small" type="button" id="pdfBtn">📄 PDF</button>
+            <button class="btn ghost small" type="button" id="copyBtn" data-t="logs.copy">Copiar informe</button>
+            <button class="btn ghost small" type="button" id="jsonBtn">JSON</button>
+            <button class="btn ghost small" type="button" id="resetBtn" data-t="logs.new">Nuevo análisis</button>
+            <span class="muted mono model" id="modelInfo"></span>
+          </div>
+          <div class="tabs" role="tablist" id="tabs">
+            <button type="button" role="tab" data-tab="alerts" aria-selected="true"><span data-t="logs.tab.alerts">Alertas</span><span class="badge" id="bAlerts">0</span></button>
+            <button type="button" role="tab" data-tab="timeline" aria-selected="false"><span data-t="logs.tab.timeline">Línea de tiempo</span><span class="badge" id="bTimeline">0</span></button>
+            <button type="button" role="tab" data-tab="ips" aria-selected="false"><span>IPs</span><span class="badge" id="bIps">0</span></button>
+            <button type="button" role="tab" data-tab="raw" aria-selected="false"><span data-t="logs.tab.raw">Log original</span></button>
+          </div>
+          <div class="tabpane" id="tab-alerts">
+            <div class="seg filter" data-filter="alerts"></div>
+            <div id="alertsList"></div>
+          </div>
+          <div class="tabpane" id="tab-timeline" hidden>
+            <div class="seg filter" data-filter="timeline"></div>
+            <ol class="timeline" id="timelineList"></ol>
+          </div>
+          <div class="tabpane" id="tab-ips" hidden>
+            <div class="table-wrap"><table class="iptable" id="ipTable"></table></div>
+            <p class="muted" style="font-size:.85rem;margin-top:8px" data-t="logs.ipNote">Los eventos por IP se cuentan en tu log, no los estima la IA. Las IP que la IA cite y no aparezcan en el log se descartan.</p>
+          </div>
+          <div class="tabpane" id="tab-raw" hidden>
+            <input class="input" id="rawFilter" type="search" data-t-ph="logs.rawFilter" style="margin-bottom:8px">
+            <div class="raw" id="rawView"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="bt-foot" id="btFoot"></footer>
+<script src="assets/core.js"></script>
+<script src="assets/logs.js"></script>
+</body>
+</html>
