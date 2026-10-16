@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Respuesta a incidentes · BlueTeamAI</title>
+<meta name="description" content="Asistente de respuesta a incidentes con la IA gratuita de Google Gemini: plan de contención, forense, erradicación, recuperación, checklist y obligaciones legales (RGPD, NIS2, ENS).">
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@700;900&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/core.css">
+<link rel="stylesheet" href="assets/incident.css">
+<script>(function(){var t=null;try{t=localStorage.getItem('bt_theme')}catch(e){}if(!t)t=matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';document.documentElement.setAttribute('data-theme',t)})();</script>
+</head>
+<body data-tool="incident" data-title-key="ir.title">
+<header class="bt-top" id="btTop"></header>
+
+<main class="wrap">
+  <div class="tool">
+    <aside class="panel">
+      <button class="btn block" type="button" id="newBtn">＋ <span data-t="ir.new">Nuevo incidente</span></button>
+      <button class="btn ghost block" type="button" id="pbBtn" style="margin-top:8px">📚 <span data-t="ir.playbooks">Playbooks</span></button>
+      <div class="panel-title" style="margin-top:18px"><span data-t="ir.history">Historial</span><span class="muted" id="histCount"></span></div>
+      <ul class="history" id="history"></ul>
+      <p class="muted" style="font-size:.82rem;margin-top:8px" data-t="ir.historyNote">Se guarda solo en este navegador (últimos 20).</p>
+      <p class="notice info" style="margin-top:14px;font-size:.9rem">
+        <span data-t="ir.upsell">¿Sin conexión o sin enviar datos a Google? GhostIncident para Windows trae un motor de respuesta offline.</span>
+        <a href="https://ghostore.unfantasmaenelsistema.com/apps/ghostincident/" target="_blank" rel="noopener">GhostIncident ↗</a>
+      </p>
+    </aside>
+
+    <section class="views" aria-live="polite">
+      <!-- Bienvenida -->
+      <div class="panel view" id="vWelcome">
+        <span class="tag" style="color:var(--accent)" data-t="ir.badge">Asistente de respuesta a incidentes</span>
+        <h1 class="h1" style="margin-top:10px" data-t="ir.h1">Responde a un incidente con un plan claro, en minutos</h1>
+        <p class="lead" style="margin:6px 0 16px" data-t="ir.lead">Indica el tipo de ataque, el sistema afectado y las evidencias que tengas. La IA genera un plan completo: evaluación, contención con comandos, forense, erradicación, recuperación, checklist, comunicación y obligaciones legales. Después puedes seguir preguntando.</p>
+        <div class="quick" id="quick"></div>
+        <button class="btn" type="button" id="startBtn" style="margin-top:16px">⚡ <span data-t="ir.start">Empezar</span></button>
+        <p class="notice info" style="margin-top:14px" id="noKeyHint" hidden></p>
+      </div>
+
+      <!-- Formulario -->
+      <div class="panel view" id="vIntake" hidden>
+        <h2 class="h1" style="font-size:1.15rem" data-t="ir.intakeTitle">Nuevo incidente de seguridad</h2>
+        <p class="muted" style="margin:4px 0 16px" data-t="ir.intakeLead">Cuanta más información aportes, más preciso será el plan.</p>
+
+        <div class="field">
+          <span class="label"><span data-t="ir.f.attack">Tipo de ataque</span> <span class="req">*</span></span>
+          <div class="attacks" id="attacks" role="group"></div>
+          <input class="input" id="attackCustom" style="margin-top:8px" hidden data-t-ph="ir.f.attackOther">
+        </div>
+        <div class="field">
+          <span class="label"><span data-t="ir.f.sev">Severidad estimada</span> <span class="req">*</span></span>
+          <div class="seg" id="sevSeg" role="group"></div>
+        </div>
+        <div class="field">
+          <label class="label" for="system"><span data-t="ir.f.system">Sistema afectado</span> <span class="req">*</span></label>
+          <input class="input" id="system" maxlength="300" data-t-ph="ir.f.systemPh">
+        </div>
+        <div class="grid two">
+          <div class="field">
+            <label class="label" for="env" data-t="ir.f.env">Entorno</label>
+            <select class="select" id="env"></select>
+          </div>
+          <div class="field">
+            <label class="label" for="discovery" data-t="ir.f.discovery">¿Cómo se detectó?</label>
+            <input class="input" id="discovery" maxlength="300" data-t-ph="ir.f.discoveryPh">
+          </div>
+        </div>
+        <div class="field">
+          <label class="label" for="logs" data-t="ir.f.logs">Logs o evidencias (muy recomendado)</label>
+          <textarea class="textarea" id="logs" spellcheck="false" style="min-height:130px" data-t-ph="ir.f.logsPh"></textarea>
+        </div>
+        <div class="field">
+          <label class="label" for="context" data-t="ir.f.context">Contexto adicional</label>
+          <textarea class="textarea" id="context" data-t-ph="ir.f.contextPh"></textarea>
+        </div>
+        <div class="field">
+          <span class="label" data-t="ir.f.options">Opciones</span>
+          <label class="switch"><input type="checkbox" id="optChecklist" checked><span><b data-t="ir.o.check">Checklist interactiva</b><small data-t="ir.o.checkD">Lista de tareas marcables, ordenadas por prioridad.</small></span></label>
+          <label class="switch"><input type="checkbox" id="optCommands" checked><span><b data-t="ir.o.cmd">Comandos de contención</b><small data-t="ir.o.cmdD">Comandos listos para copiar, para el entorno elegido.</small></span></label>
+          <label class="switch"><input type="checkbox" id="optLegal" checked><span><b data-t="ir.o.legal">Marco regulatorio</b><small data-t="ir.o.legalD">Plazos y avisos de RGPD, NIS2 y ENS.</small></span></label>
+        </div>
+        <p class="notice" style="margin-bottom:12px;font-size:.92rem" data-t="ir.privacy"></p>
+        <button class="btn block" type="button" id="analyzeBtn">🛡️ <span data-t="ir.analyze">Generar plan de respuesta</span></button>
+      </div>
+
+      <!-- Respuesta -->
+      <div class="view" id="vResponse" hidden>
+        <div class="panel banner" id="banner"></div>
+        <div class="resp-grid">
+          <div class="panel convo">
+            <div class="actions">
+              <button class="btn small" type="button" id="pdfBtn">📄 PDF</button>
+              <button class="btn ghost small" type="button" id="mdBtn">Markdown</button>
+              <button class="btn ghost small" type="button" id="copyBtn" data-t="ir.copy">Copiar</button>
+              <span class="muted mono model" id="modelInfo"></span>
+            </div>
+            <div id="messages"></div>
+            <div class="ask">
+              <label class="sr-only" for="askInput" data-t="ir.askLabel">Pregunta de seguimiento</label>
+              <textarea class="textarea" id="askInput" rows="2" data-t-ph="ir.askPh"></textarea>
+              <button class="btn" type="button" id="askBtn" data-t-aria="ir.send" title="Enter">➤</button>
+            </div>
+          </div>
+          <div class="side">
+            <div class="panel">
+              <div class="panel-title" data-t="ir.phases">Fase actual</div>
+              <ol class="phases" id="phases"></ol>
+              <p class="muted" style="font-size:.82rem;margin-top:6px" data-t="ir.phasesNote">Marca en qué fase estás; se guarda con el incidente.</p>
+            </div>
+            <div class="panel">
+              <div class="panel-title" data-t="ir.refs">Recursos oficiales</div>
+              <ul class="refs" id="refs"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playbooks -->
+      <div class="panel view" id="vPlaybooks" hidden>
+        <h2 class="h1" style="font-size:1.15rem" data-t="ir.pbTitle">Biblioteca de playbooks</h2>
+        <p class="muted" style="margin:4px 0 14px" data-t="ir.pbLead">Elige uno para rellenar el formulario y generar su plan con la IA.</p>
+        <div class="cards" id="pbGrid"></div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="bt-foot" id="btFoot"></footer>
+<script src="assets/core.js"></script>
+<script src="assets/incident.js"></script>
+</body>
+</html>
